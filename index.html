@@ -3,87 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wi-Fi Voronoi Planner & Coverage Simulator</title>
+    <title>ระบบวางแผนจุดปล่อยสัญญาณ Wi-Fi (Voronoi)</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 
     <style>
         * { box-sizing: border-box; }
+        
+        /* จัด Layout หลักของหน้าเว็บ */
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; /* เพิ่ม Font ไทยถ้ามี หรือใช้ Default */
             margin: 0; padding: 0;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             height: 100vh;
-            display: flex; flex-direction: column; overflow: hidden;
+            display: flex; 
+            flex-direction: column;
+            overflow: hidden;
         }
 
         /* Header */
         header {
-            background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);
-            padding: 15px 20px; display: flex; align-items: center; justify-content: center;
-            gap: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            display: flex; align-items: center; justify-content: center;
+            gap: 15px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            flex-shrink: 0;
+            z-index: 1000;
         }
+        
+        /* ปรับปรุงโลโก้ให้เป็นวงกลมพื้นขาว (Badge Style) */
         .header-logo-wrapper {
-            width: 60px; height: 60px; border-radius: 50%;
-            background: transparent; display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+            width: 55px; height: 55px;
+            border-radius: 50%;
+            background: white; /* พื้นหลังสีขาว */
+            padding: 5px; /* ระยะห่างขอบ */
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2); /* เพิ่มเงาให้ดูมีมิติ */
+            overflow: hidden;
         }
-        .header-logo { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: screen; }
+        .header-logo { 
+            width: 100%; height: 100%; 
+            object-fit: contain; 
+            /* ลบ mix-blend-mode ออกเพื่อให้แสดงสีโลโก้จริงบนพื้นขาว */
+        }
+        
         .header-content { display: flex; flex-direction: column; }
-        .header-title { color: white; font-size: clamp(1.2rem, 3vw, 1.8rem); font-weight: 700; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
-        .header-subtitle { color: rgba(255, 255, 255, 0.95); font-size: clamp(0.85rem, 2vw, 1rem); margin: 5px 0 0 0; }
-
-        /* Layout */
-        #container {
-            display: flex; flex-direction: column; flex-grow: 1; width: 100%;
-            overflow: hidden; height: calc(100vh - 160px);
+        
+        /* ปรับขนาด Font ให้เหมาะสม */
+        .header-title { 
+            color: white; 
+            font-size: clamp(1.1rem, 2.5vw, 1.4rem); 
+            font-weight: 700; 
+            margin: 0; 
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.3); 
         }
-        footer {
-            background: rgba(0, 0, 0, 0.2); color: white; text-align: center;
-            padding: 10px; font-size: clamp(0.75rem, 1.5vw, 0.85rem); flex-shrink: 0;
+        .header-subtitle { 
+            color: rgba(255, 255, 255, 0.95); 
+            font-size: clamp(0.75rem, 2vw, 0.9rem); 
+            margin: 4px 0 0 0; 
+            font-weight: 500;
+        }
+
+        /* Container & Layout */
+        #container {
+            display: flex; 
+            flex-direction: column; 
+            flex-grow: 1; /* ยืดเต็มพื้นที่ */
+            width: 100%;
+            overflow: hidden;
+            position: relative;
         }
 
         /* Controls */
         #controls {
-            width: 100%; padding: 20px; background: white; overflow-y: auto;
+            width: 100%; padding: 20px; background: white; 
+            overflow-y: auto;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 500;
         }
-        #map { width: 100%; height: 50vh; flex: 1; z-index: 1; transition: cursor 0.3s; }
+
+        /* Map */
+        #map { 
+            width: 100%; 
+            height: 40vh; /* Mobile Height */
+            flex-grow: 1;
+            z-index: 1; 
+            transition: cursor 0.3s; 
+        }
         
-        /* Cursor styles */
         .crosshair-cursor { cursor: crosshair !important; }
 
-        /* Inputs & Buttons */
-        h2 { border-bottom: 3px solid #667eea; padding-bottom: 8px; color: #333; margin-top: 0; }
+        /* Footer */
+        footer {
+            background: rgba(0, 0, 0, 0.3); color: white; text-align: center;
+            padding: 8px; font-size: 0.8rem; 
+            flex-shrink: 0;
+        }
+
+        /* Components */
+        h2 { border-bottom: 3px solid #667eea; padding-bottom: 8px; color: #333; margin-top: 0; font-size: 1.1rem; }
         .building-input {
-            display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;
-            padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;
+            display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;
+            padding: 10px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;
         }
+        .building-input label { font-size: 0.9rem; font-weight: 600; min-width: 60px; display: flex; align-items: center; }
         .building-input input {
-            flex: 1; min-width: 120px; padding: 10px; border: 2px solid #dee2e6; border-radius: 6px;
+            flex: 1; min-width: 100px; padding: 8px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 0.9rem;
         }
+        
         button {
-            padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white; border: none; border-radius: 8px; cursor: pointer;
-            font-weight: 600; margin: 8px 8px 8px 0; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
-            transition: all 0.2s;
+            padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; border-radius: 6px; cursor: pointer;
+            font-weight: 600; margin: 5px 5px 5px 0; box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+            transition: all 0.2s; font-size: 0.9rem;
         }
         button:hover { transform: translateY(-2px); }
-        
-        #add-building { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-        
-        #process-data { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); width: 100%; }
-        
-        #check-signal-btn { 
-            background: #607d8b; width: 100%; margin-top: 5px; border: 2px solid transparent;
-        }
-        #check-signal-btn.active {
-            background: #ff5722;
-            animation: pulse 1.5s infinite;
-            border-color: #ffccbc;
-        }
+        #add-building { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); width: 100%; margin-bottom: 15px; }
+        #process-data { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); width: 100%; margin-bottom: 5px; }
+        #check-signal-btn { background: #607d8b; width: 100%; border: 2px solid transparent; }
+        #check-signal-btn.active { background: #ff5722; animation: pulse 1.5s infinite; border-color: #ffccbc; }
 
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(255, 87, 34, 0.4); }
@@ -91,33 +132,42 @@
             100% { box-shadow: 0 0 0 0 rgba(255, 87, 34, 0); }
         }
 
-        /* Results */
-        #results { margin-top: 25px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef; }
-        #results ul { list-style: none; padding: 0; }
+        #results { margin-top: 20px; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef; }
+        #results ul { list-style: none; padding: 0; margin: 0; }
         #results li {
-            background: white; border: 1px solid #dee2e6; padding: 12px; margin-bottom: 8px;
-            border-radius: 6px; font-family: monospace; font-size: 0.9rem;
+            background: white; border: 1px solid #dee2e6; padding: 8px; margin-bottom: 5px;
+            border-radius: 4px; font-family: monospace; font-size: 0.85rem;
         }
 
-        /* Legend for Aura */
         .legend-box {
-            margin-top: 15px; padding: 10px; background: #fff3cd; 
-            border: 1px solid #ffeeba; border-radius: 6px; font-size: 0.85rem;
+            margin-top: 0; padding: 10px; background: #fff3cd; 
+            border: 1px solid #ffeeba; border-radius: 6px; font-size: 0.8rem; margin-bottom: 15px;
         }
-        .dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
 
-        /* Popup Styles */
-        .signal-popup { text-align: center; min-width: 150px; }
-        .signal-bars { font-size: 1.2rem; letter-spacing: 2px; margin: 5px 0; }
-        .signal-label { font-size: 0.8rem; color: #666; font-weight: bold; }
-        .signal-val-good { color: #4CAF50; }
-        .signal-val-fair { color: #FFC107; }
-        .signal-val-bad { color: #F44336; }
+        /* Popup */
+        .signal-popup { text-align: center; min-width: 140px; }
+        .signal-bars { font-size: 1.1rem; letter-spacing: 1px; margin: 3px 0; }
+        .signal-label { font-size: 0.75rem; color: #666; font-weight: bold; }
 
         /* Responsive */
         @media (min-width: 768px) {
-            #container { flex-direction: row; }
-            #controls { width: 35%; min-width: 350px; max-width: 450px; border-right: 1px solid #dee2e6; }
+            #container { 
+                flex-direction: row; 
+                overflow: hidden; 
+            }
+            #controls { 
+                width: 320px; 
+                min-width: 300px; max-width: 350px; 
+                border-right: 1px solid #dee2e6; 
+                height: 100%; 
+                flex-shrink: 0;
+            }
+            #map { 
+                height: 100%; 
+                width: auto;
+                flex-grow: 1;
+            }
         }
     </style>
 </head>
@@ -125,68 +175,72 @@
 
     <header>
         <div class="header-logo-wrapper">
-            <img src="https://img2.pic.in.th/pic/LOGO-HONGSON-METAVERSE-MODEL-2.png" alt="Logo" class="header-logo">
+            <img src="https://img2.pic.in.th/pic/LOGO-HONGSON-METAVERSE-MODEL-2.png" alt="Logo โรงเรียนห้องสอนศึกษา" class="header-logo">
         </div>
         <div class="header-content">
-            <h1 class="header-title">📡 Wi-Fi Coverage Planner</h1>
-            <p class="header-subtitle">จำลองจุดติดตั้ง, รัศมี (Aura) และตรวจสอบสัญญาณจริง</p>
+            <h1 class="header-title">ระบบวางแผนจุดปล่อยสัญญาณ Wi-Fi (Voronoi)</h1>
+            <p class="header-subtitle">โครงงานคณิตศาสตร์ โรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ</p>
         </div>
     </header>
 
     <div id="container">
         <div id="controls">
-            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #90caf9;">
-                <h3 style="margin: 0 0 10px 0; color: #1565c0;">ℹ️ สถานะรัศมีสัญญาณ</h3>
-                <div class="legend-box">
-                    <div><span class="dot" style="background: #4CAF50;"></span><strong>5GHz (สีเขียว):</strong> ~30 เมตร (High Speed)</div>
-                    <div style="margin-top:5px;"><span class="dot" style="background: #FFC107;"></span><strong>2.4GHz (สีเหลือง):</strong> ~70 เมตร (Long Range)</div>
+            <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #90caf9;">
+                <h3 style="margin: 0 0 8px 0; color: #1565c0; font-size: 1rem;">ℹ️ รัศมีสัญญาณ (Aura)</h3>
+                <div class="legend-box" style="margin-bottom:0; background: transparent; border:none; padding:0;">
+                    <div><span class="dot" style="background: #4CAF50;"></span><strong>5GHz (เขียว):</strong> ~30m (แรง/สั้น)</div>
+                    <div style="margin-top:3px;"><span class="dot" style="background: #FFC107;"></span><strong>2.4GHz (เหลือง):</strong> ~70m (ไกล)</div>
                 </div>
             </div>
             
-            <h2>📍 ระบุพิกัดและคำนวณ</h2>
+            <h2>📍 พิกัดและคำนวณ</h2>
             
-            <div style="margin-bottom: 15px;">
-                <label style="font-weight: 600;">📡 จำนวนตัวปล่อย WiFi:</label>
-                <input type="number" id="wifi-count" min="1" value="1" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc; width: 80px;">
+            <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                <label style="font-weight: 600; font-size: 0.9rem;">จำนวน WiFi:</label>
+                <input type="number" id="wifi-count" min="1" value="1" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc; width: 60px; text-align: center;">
             </div>
             
             <div id="building-inputs">
                 <div class="building-input">
-                    <label>อาคาร 1:</label>
-                    <input type="text" class="lat" value="19.312851" placeholder="Lat">
-                    <input type="text" class="lng" value="97.965734" placeholder="Lng">
+                    <label>ตึก 1:</label>
+                    <input type="text" class="lat" value="19.312851">
+                    <input type="text" class="lng" value="97.965734">
                 </div>
                 <div class="building-input">
-                    <label>อาคาร 2:</label>
-                    <input type="text" class="lat" value="19.312559" placeholder="Lat">
-                    <input type="text" class="lng" value="97.965932" placeholder="Lng">
+                    <label>ตึก 2:</label>
+                    <input type="text" class="lat" value="19.312559">
+                    <input type="text" class="lng" value="97.965932">
                 </div>
                 <div class="building-input">
-                    <label>อาคาร 3:</label>
-                    <input type="text" class="lat" value="19.312264" placeholder="Lat">
-                    <input type="text" class="lng" value="97.965610" placeholder="Lng">
+                    <label>ตึก 3:</label>
+                    <input type="text" class="lat" value="19.312264">
+                    <input type="text" class="lng" value="97.965610">
                 </div>
             </div>
             
             <button id="add-building">+ เพิ่มอาคาร</button>
-            <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;">
+            <hr style="margin: 10px 0; border: 0; border-top: 1px solid #eee;">
             
-            <button id="process-data">🚀 1. คำนวณและสร้าง Aura</button>
-            <button id="check-signal-btn">📶 2. ตรวจสอบสัญญาณ (คลิกเพื่อเริ่ม)</button>
+            <button id="process-data">🚀 1. คำนวณ Aura</button>
+            <button id="check-signal-btn">📶 2. ตรวจสอบสัญญาณ</button>
 
             <div id="results">
-                <h3>ผลการคำนวณพิกัด</h3>
-                <ul id="vertex-list"><li>(รอการประมวลผล...)</li></ul>
+                <h3 style="margin:0 0 10px 0; font-size:0.95rem;">ผลลัพธ์พิกัด (Lat, Lng)</h3>
+                <ul id="vertex-list"><li>- รอการประมวลผล -</li></ul>
             </div>
         </div>
 
         <div id="map"></div>
     </div>
+    
+    <footer>
+        Copyright © 2025 โครงงานคณิตศาสตร์ โรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ
+    </footer>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             
-            // --- 1. Map Setup ---
+            // --- Map Setup ---
             const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                 attribution: 'Tiles &copy; Esri', maxZoom: 19
             });
@@ -196,25 +250,23 @@
 
             const map = L.map('map', {
                 layers: [satelliteLayer],
-                maxZoom: 18
+                maxZoom: 18,
+                zoomControl: false
             }).setView([19.312851, 97.965734], 18);
-
-            L.control.layers({ "ดาวเทียม": satelliteLayer, "แผนที่ถนน": osmLayer }).addTo(map);
+            
+            L.control.zoom({ position: 'topright' }).addTo(map);
+            L.control.layers({ "ดาวเทียม": satelliteLayer, "แผนที่ถนน": osmLayer }, null, { position: 'bottomright' }).addTo(map);
             
             let markerLayer = L.layerGroup().addTo(map);
             let checkSignalMode = false;
-            let currentWifiPoints = []; // Store calculated points globally
+            let currentWifiPoints = [];
 
-            // --- 2. Helper Functions ---
-
-            // คำนวณ Voronoi (K-Means approach)
+            // --- Helper Functions ---
             function calculateVoronoiVertices(points, k, maxIterations = 50) {
                 if (points.length === 0 || k <= 0) return [];
                 if (k >= points.length) return points.map(p => ({ lat: p.lat, lng: p.lng }));
-
                 let vertices = [];
                 for(let i=0; i<k; i++) vertices.push(points[Math.floor(Math.random()*points.length)]);
-
                 for(let iter=0; iter<maxIterations; iter++) {
                     const cells = Array(k).fill().map(() => []);
                     points.forEach(p => {
@@ -225,7 +277,6 @@
                         });
                         cells[idx].push(p);
                     });
-
                     const newVertices = vertices.map((v, i) => {
                         if(cells[i].length === 0) return v;
                         return {
@@ -233,132 +284,86 @@
                             lng: cells[i].reduce((s, p) => s + p.lng, 0) / cells[i].length
                         };
                     });
-                    
                     if(JSON.stringify(vertices) === JSON.stringify(newVertices)) break;
                     vertices = newVertices;
                 }
                 return vertices;
             }
 
-            // คำนวณระยะทาง (Haversine Formula) return meters
             function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
-                var R = 6371; // Radius of the earth in km
-                var dLat = deg2rad(lat2-lat1);  
-                var dLon = deg2rad(lon2-lon1); 
-                var a = 
-                    Math.sin(dLat/2) * Math.sin(dLat/2) +
-                    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2); 
+                var R = 6371; var dLat = deg2rad(lat2-lat1); var dLon = deg2rad(lon2-lon1); 
+                var a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2); 
                 var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-                var d = R * c; // Distance in km
-                return d * 1000; // Distance in meters
+                return R * c * 1000;
             }
+            function deg2rad(deg) { return deg * (Math.PI/180) }
 
-            function deg2rad(deg) {
-                return deg * (Math.PI/180)
-            }
-
-            // คำนวณขีดสัญญาณ (Signal Bars Logic)
             function getSignalBars(dist, type) {
-                let bars = 0;
-                let color = '#F44336'; // Red (No signal)
-                
+                let bars = 0; let color = '#F44336';
                 if (type === '5G') {
-                    // 5G Range: 0-35m
-                    if (dist <= 10) { bars = 4; color = '#4CAF50'; } // เขียวเข้ม
-                    else if (dist <= 20) { bars = 3; color = '#8BC34A'; } // เขียวอ่อน
-                    else if (dist <= 30) { bars = 2; color = '#FFC107'; } // เหลือง (ขอบ Aura)
-                    else if (dist <= 35) { bars = 1; color = '#FF9800'; } // ส้ม
+                    if (dist <= 10) { bars = 4; color = '#4CAF50'; }
+                    else if (dist <= 20) { bars = 3; color = '#8BC34A'; }
+                    else if (dist <= 30) { bars = 2; color = '#FFC107'; }
+                    else if (dist <= 35) { bars = 1; color = '#FF9800'; }
                 } else {
-                    // 2.4G Range: 0-85m
                     if (dist <= 20) { bars = 4; color = '#4CAF50'; }
                     else if (dist <= 45) { bars = 3; color = '#8BC34A'; }
-                    else if (dist <= 70) { bars = 2; color = '#FFC107'; } // (ขอบ Aura)
+                    else if (dist <= 70) { bars = 2; color = '#FFC107'; }
                     else if (dist <= 85) { bars = 1; color = '#FF9800'; }
                 }
-
-                // Generate visual bars
                 let barHtml = '';
-                for(let i=0; i<4; i++) {
-                    barHtml += `<span style="display:inline-block; width:8px; height:14px; background:${i < bars ? color : '#ddd'}; margin-right:2px; border-radius:2px;"></span>`;
-                }
+                for(let i=0; i<4; i++) barHtml += `<span style="display:inline-block; width:6px; height:12px; background:${i < bars ? color : '#ddd'}; margin-right:2px; border-radius:2px;"></span>`;
                 return { html: barHtml, bars: bars, color: color };
             }
 
-            // --- 3. Event Listeners ---
-
-            // Toggle Check Mode
+            // --- Events ---
             const checkBtn = document.getElementById('check-signal-btn');
             checkBtn.addEventListener('click', () => {
                 checkSignalMode = !checkSignalMode;
                 const mapContainer = document.getElementById('map');
-                
                 if(checkSignalMode) {
-                    checkBtn.innerHTML = '🛑 หยุดตรวจสอบสัญญาณ';
+                    checkBtn.innerHTML = '🛑 หยุดตรวจสอบ';
                     checkBtn.classList.add('active');
                     mapContainer.classList.add('crosshair-cursor');
-                    map.dragging.enable(); // ยังให้เลื่อนแมพได้
+                    map.dragging.enable();
                 } else {
-                    checkBtn.innerHTML = '📶 2. ตรวจสอบสัญญาณ (คลิกเพื่อเริ่ม)';
+                    checkBtn.innerHTML = '📶 2. ตรวจสอบสัญญาณ';
                     checkBtn.classList.remove('active');
                     mapContainer.classList.remove('crosshair-cursor');
                 }
             });
 
-            // Map Click Handler (For Signal Check)
             map.on('click', (e) => {
                 if(!checkSignalMode) return;
-                if(currentWifiPoints.length === 0) {
-                    alert('กรุณากดปุ่ม "คำนวณ" ก่อนเริ่มตรวจสอบสัญญาณ');
-                    return;
-                }
-
-                const clickLat = e.latlng.lat;
-                const clickLng = e.latlng.lng;
-
-                // Find nearest Access Point
+                if(currentWifiPoints.length === 0) return alert('กรุณากดคำนวณก่อน');
+                const clickLat = e.latlng.lat; const clickLng = e.latlng.lng;
                 let minDist = Infinity;
-                
                 currentWifiPoints.forEach(p => {
                     const d = getDistanceFromLatLonInM(clickLat, clickLng, p.lat, p.lng);
                     if(d < minDist) minDist = d;
                 });
-
-                // Calculate Bars
                 const sig5 = getSignalBars(minDist, '5G');
                 const sig24 = getSignalBars(minDist, '2.4G');
-
-                // Create Popup Content
                 const popupContent = `
                     <div class="signal-popup">
-                        <h4 style="margin:0 0 5px 0; border-bottom:1px solid #eee; padding-bottom:5px;">📊 ตรวจสอบสัญญาณ</h4>
-                        <div style="font-size:0.9rem; margin-bottom:8px;">ระยะห่าง: <b>${minDist.toFixed(1)} เมตร</b></div>
-                        
-                        <div style="background:#f5f5f5; padding:5px; border-radius:5px; margin-bottom:5px;">
-                            <div class="signal-label">5GHz WiFi</div>
+                        <h4 style="margin:0 0 5px 0; border-bottom:1px solid #eee; padding-bottom:5px; font-size:0.9rem;">📊 ผลการวัดสัญญาณ</h4>
+                        <div style="font-size:0.85rem; margin-bottom:8px;">ระยะห่าง: <b>${minDist.toFixed(1)} m</b></div>
+                        <div style="background:#f5f5f5; padding:4px; border-radius:4px; margin-bottom:4px;">
+                            <div class="signal-label">5GHz</div>
                             <div class="signal-bars">${sig5.html}</div>
-                            <div style="font-size:0.8rem; color:${sig5.color}">${sig5.bars}/4 ขีด</div>
                         </div>
-
-                        <div style="background:#f5f5f5; padding:5px; border-radius:5px;">
-                            <div class="signal-label">2.4GHz WiFi</div>
+                        <div style="background:#f5f5f5; padding:4px; border-radius:4px;">
+                            <div class="signal-label">2.4GHz</div>
                             <div class="signal-bars">${sig24.html}</div>
-                            <div style="font-size:0.8rem; color:${sig24.color}">${sig24.bars}/4 ขีด</div>
                         </div>
-                    </div>
-                `;
-
-                L.popup()
-                    .setLatLng(e.latlng)
-                    .setContent(popupContent)
-                    .openOn(map);
+                    </div>`;
+                L.popup().setLatLng(e.latlng).setContent(popupContent).openOn(map);
             });
 
-            // Process Data (Calculate & Draw)
             document.getElementById('process-data').addEventListener('click', () => {
-                // Reset State
                 checkSignalMode = false;
                 checkBtn.classList.remove('active');
-                checkBtn.innerHTML = '📶 2. ตรวจสอบสัญญาณ (คลิกเพื่อเริ่ม)';
+                checkBtn.innerHTML = '📶 2. ตรวจสอบสัญญาณ';
                 document.getElementById('map').classList.remove('crosshair-cursor');
                 
                 markerLayer.clearLayers();
@@ -366,7 +371,6 @@
                 list.innerHTML = '';
                 currentWifiPoints = [];
 
-                // Get Buildings
                 const buildings = [];
                 document.querySelectorAll('.building-input').forEach((div, i) => {
                     const lat = parseFloat(div.querySelector('.lat').value);
@@ -377,9 +381,7 @@
                     }
                 });
 
-                if(buildings.length === 0) return alert("กรุณาระบุพิกัดอาคาร");
-
-                // Calculate WiFi Points
+                if(buildings.length === 0) return alert("ระบุพิกัดอาคารก่อนครับ");
                 const wifiCount = parseInt(document.getElementById('wifi-count').value) || 1;
                 
                 if(wifiCount === 1) {
@@ -390,51 +392,27 @@
                     currentWifiPoints = calculateVoronoiVertices(buildings, wifiCount);
                 }
 
-                // Draw Layers (Aura & Points)
                 currentWifiPoints.forEach((p, i) => {
                     const latLng = [p.lat, p.lng];
-                    
-                    // 2.4G Aura (Yellow) - 70m
-                    L.circle(latLng, {
-                        color: '#FFC107', fillColor: '#FFC107', fillOpacity: 0.15,
-                        radius: 70, weight: 1, dashArray: '5, 5'
-                    }).addTo(markerLayer);
-
-                    // 5G Aura (Green) - 30m
-                    L.circle(latLng, {
-                        color: '#4CAF50', fillColor: '#4CAF50', fillOpacity: 0.3,
-                        radius: 30, weight: 1
-                    }).addTo(markerLayer);
-
-                    // Center Point
-                    L.circleMarker(latLng, {
-                        radius: 6, color: 'white', weight: 2,
-                        fillColor: '#f03', fillOpacity: 1
-                    }).addTo(markerLayer).bindPopup(`<b>AP ${i+1}</b><br>Lat: ${p.lat.toFixed(5)}<br>Lng: ${p.lng.toFixed(5)}`);
-
-                    // Add to list
+                    L.circle(latLng, { color: '#FFC107', fillColor: '#FFC107', fillOpacity: 0.15, radius: 70, weight: 1, dashArray: '5, 5' }).addTo(markerLayer);
+                    L.circle(latLng, { color: '#4CAF50', fillColor: '#4CAF50', fillOpacity: 0.3, radius: 30, weight: 1 }).addTo(markerLayer);
+                    L.circleMarker(latLng, { radius: 5, color: 'white', weight: 2, fillColor: '#f03', fillOpacity: 1 }).addTo(markerLayer);
                     const li = document.createElement('li');
                     li.innerHTML = `<strong>จุดที่ ${i+1}:</strong> ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
                     list.appendChild(li);
                 });
 
-                // Fit Bounds
-                const bounds = L.latLngBounds([
-                    ...buildings.map(b => [b.lat, b.lng]),
-                    ...currentWifiPoints.map(p => [p.lat, p.lng])
-                ]);
-                map.fitBounds(bounds.pad(0.3));
+                const bounds = L.latLngBounds([ ...buildings.map(b => [b.lat, b.lng]), ...currentWifiPoints.map(p => [p.lat, p.lng]) ]);
+                map.fitBounds(bounds.pad(0.2));
             });
 
-            // Add Building Button
             document.getElementById('add-building').addEventListener('click', () => {
                 const div = document.createElement('div');
                 div.className = 'building-input';
-                div.innerHTML = `<label>อาคารใหม่:</label><input type="text" class="lat" placeholder="Lat"><input type="text" class="lng" placeholder="Lng">`;
+                div.innerHTML = `<label>อาคาร:</label><input type="text" class="lat" placeholder="Lat"><input type="text" class="lng" placeholder="Lng">`;
                 document.getElementById('building-inputs').appendChild(div);
             });
 
-            // Auto Run on Load
             setTimeout(() => document.getElementById('process-data').click(), 800);
         });
     </script>

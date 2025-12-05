@@ -2,172 +2,155 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบวางแผนจุดปล่อยสัญญาณ Wi-Fi (Voronoi)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ระบบวางแผนจุดปล่อย Wi-Fi ด้วย Voronoi</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+
     <style>
         * { box-sizing: border-box; }
         
-        /* จัด Layout หลักของหน้าเว็บ */
         body {
-            font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; /* เพิ่ม Font ไทยถ้ามี หรือใช้ Default */
+            font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
             margin: 0; padding: 0;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             height: 100vh;
-            display: flex; 
-            flex-direction: column;
+            display: flex; flex-direction: column;
             overflow: hidden;
         }
 
-        /* Header */
+        /* --- Header --- */
         header {
             background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px);
-            padding: 10px 20px;
+            padding: 10px 15px;
             display: flex; align-items: center; justify-content: center;
-            gap: 15px; 
+            gap: 12px; 
             box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
-            flex-shrink: 0;
-            z-index: 1000;
+            flex-shrink: 0; z-index: 1000;
         }
         
-        /* ปรับปรุงโลโก้ให้เป็นวงกลมพื้นขาว (Badge Style) */
         .header-logo-wrapper {
-            width: 55px; height: 55px;
+            width: 45px; height: 45px; /* ลดขนาดนิดหน่อยสำหรับมือถือ */
             border-radius: 50%;
-            background: white; /* พื้นหลังสีขาว */
-            padding: 5px; /* ระยะห่างขอบ */
+            background: white;
+            padding: 4px;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2); /* เพิ่มเงาให้ดูมีมิติ */
-            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
-        .header-logo { 
-            width: 100%; height: 100%; 
-            object-fit: contain; 
-            /* ลบ mix-blend-mode ออกเพื่อให้แสดงสีโลโก้จริงบนพื้นขาว */
-        }
-        
+        .header-logo { width: 100%; height: 100%; object-fit: contain; }
         .header-content { display: flex; flex-direction: column; }
-        
-        /* ปรับขนาด Font ให้เหมาะสม */
-        .header-title { 
-            color: white; 
-            font-size: clamp(1.1rem, 2.5vw, 1.4rem); 
-            font-weight: 700; 
-            margin: 0; 
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.3); 
-        }
-        .header-subtitle { 
-            color: rgba(255, 255, 255, 0.95); 
-            font-size: clamp(0.75rem, 2vw, 0.9rem); 
-            margin: 4px 0 0 0; 
-            font-weight: 500;
-        }
+        .header-title { color: white; font-size: 1.1rem; font-weight: 700; margin: 0; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
+        .header-subtitle { color: rgba(255, 255, 255, 0.9); font-size: 0.75rem; margin: 2px 0 0 0; }
 
-        /* Container & Layout */
+        /* --- Layout --- */
         #container {
-            display: flex; 
-            flex-direction: column; 
-            flex-grow: 1; /* ยืดเต็มพื้นที่ */
-            width: 100%;
-            overflow: hidden;
-            position: relative;
+            display: flex; flex-direction: column; 
+            flex-grow: 1; width: 100%; overflow: hidden; position: relative;
         }
 
-        /* Controls */
         #controls {
-            width: 100%; padding: 20px; background: white; 
-            overflow-y: auto;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            z-index: 500;
+            width: 100%; padding: 15px; background: white; 
+            overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 500;
         }
 
-        /* Map */
-        #map { 
-            width: 100%; 
-            height: 40vh; /* Mobile Height */
-            flex-grow: 1;
-            z-index: 1; 
-            transition: cursor 0.3s; 
+        #map-container {
+            flex-grow: 1; position: relative; width: 100%; z-index: 1;
         }
+
+        #map { 
+            width: 100%; height: 100%; /* Map fills its container */
+            transition: height 0.3s;
+        }
+
+        /* --- Fullscreen Map Styles (The Magic Part) --- */
+        #map-container.fullscreen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100vw; height: 100vh;
+            z-index: 9999;
+            background: white;
+        }
+
+        /* ปุ่มขยายเต็มจอ */
+        .map-toggle-btn {
+            position: absolute;
+            top: 10px; left: 10px;
+            z-index: 10000; /* อยู่บนสุด */
+            background: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #333;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            cursor: pointer;
+            display: flex; align-items: center; gap: 5px;
+            transition: all 0.2s;
+        }
+        .map-toggle-btn:active { transform: scale(0.95); }
+        .map-toggle-btn span { font-size: 1.2rem; line-height: 1; }
         
-        .crosshair-cursor { cursor: crosshair !important; }
+        /* สไตล์ปุ่มเมื่อ Fullscreen */
+        #map-container.fullscreen .map-toggle-btn {
+            background: #ff5252;
+            color: white;
+        }
+
+        /* --- UI Elements --- */
+        .building-input {
+            display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;
+            padding: 8px; background: #f8f9fa; border-radius: 6px; border: 1px solid #e9ecef;
+        }
+        .building-input label { font-size: 0.85rem; font-weight: 600; min-width: 50px; }
+        .building-input input { flex: 1; min-width: 80px; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.9rem; }
+        
+        button.action-btn {
+            width: 100%; padding: 12px; border: none; border-radius: 8px;
+            color: white; font-weight: 600; font-size: 0.95rem;
+            margin-bottom: 8px; cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        #add-building { background: linear-gradient(135deg, #20bf55 0%, #01baef 100%); }
+        #process-data { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        #check-signal-btn { background: #546e7a; margin-top: 5px; }
+        #check-signal-btn.active { background: #ff5722; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+
+        /* Results & Legend */
+        .legend-box { background: #fff8e1; padding: 10px; border-radius: 6px; font-size: 0.8rem; border: 1px solid #ffe082; margin-bottom: 15px; }
+        .dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        #results { background: #f1f8e9; padding: 10px; border-radius: 8px; border: 1px solid #c5e1a5; margin-top: 15px; }
+        #results h3 { margin: 0 0 5px 0; font-size: 0.9rem; color: #33691e; }
+        #vertex-list { list-style: none; padding: 0; margin: 0; font-size: 0.85rem; font-family: monospace; }
+        #vertex-list li { margin-bottom: 4px; }
+
+        /* Popup */
+        .signal-popup { text-align: center; min-width: 140px; }
+        .signal-bars { font-size: 1.1rem; margin: 3px 0; letter-spacing: 2px; }
 
         /* Footer */
         footer {
             background: rgba(0, 0, 0, 0.3); color: white; text-align: center;
-            padding: 8px; font-size: 0.8rem; 
-            flex-shrink: 0;
+            padding: 5px; font-size: 0.7rem; flex-shrink: 0;
         }
 
-        /* Components */
-        h2 { border-bottom: 3px solid #667eea; padding-bottom: 8px; color: #333; margin-top: 0; font-size: 1.1rem; }
-        .building-input {
-            display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;
-            padding: 10px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;
-        }
-        .building-input label { font-size: 0.9rem; font-weight: 600; min-width: 60px; display: flex; align-items: center; }
-        .building-input input {
-            flex: 1; min-width: 100px; padding: 8px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 0.9rem;
-        }
-        
-        button {
-            padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white; border: none; border-radius: 6px; cursor: pointer;
-            font-weight: 600; margin: 5px 5px 5px 0; box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
-            transition: all 0.2s; font-size: 0.9rem;
-        }
-        button:hover { transform: translateY(-2px); }
-        #add-building { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); width: 100%; margin-bottom: 15px; }
-        #process-data { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); width: 100%; margin-bottom: 5px; }
-        #check-signal-btn { background: #607d8b; width: 100%; border: 2px solid transparent; }
-        #check-signal-btn.active { background: #ff5722; animation: pulse 1.5s infinite; border-color: #ffccbc; }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(255, 87, 34, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(255, 87, 34, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 87, 34, 0); }
-        }
-
-        #results { margin-top: 20px; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef; }
-        #results ul { list-style: none; padding: 0; margin: 0; }
-        #results li {
-            background: white; border: 1px solid #dee2e6; padding: 8px; margin-bottom: 5px;
-            border-radius: 4px; font-family: monospace; font-size: 0.85rem;
-        }
-
-        .legend-box {
-            margin-top: 0; padding: 10px; background: #fff3cd; 
-            border: 1px solid #ffeeba; border-radius: 6px; font-size: 0.8rem; margin-bottom: 15px;
-        }
-        .dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
-
-        /* Popup */
-        .signal-popup { text-align: center; min-width: 140px; }
-        .signal-bars { font-size: 1.1rem; letter-spacing: 1px; margin: 3px 0; }
-        .signal-label { font-size: 0.75rem; color: #666; font-weight: bold; }
-
-        /* Responsive */
+        /* --- Desktop Responsive --- */
         @media (min-width: 768px) {
-            #container { 
-                flex-direction: row; 
-                overflow: hidden; 
-            }
+            #container { flex-direction: row; }
             #controls { 
-                width: 320px; 
-                min-width: 300px; max-width: 350px; 
-                border-right: 1px solid #dee2e6; 
-                height: 100%; 
+                width: 350px; height: 100%; border-right: 1px solid #ddd; 
                 flex-shrink: 0;
             }
-            #map { 
-                height: 100%; 
-                width: auto;
-                flex-grow: 1;
-            }
+            .header-title { font-size: 1.4rem; }
+            /* ซ่อนปุ่ม Fullscreen บน PC เพราะจอใหญ่อยู่แล้ว */
+            .map-toggle-btn { display: none; }
         }
     </style>
 </head>
@@ -175,29 +158,25 @@
 
     <header>
         <div class="header-logo-wrapper">
-            <img src="https://img2.pic.in.th/pic/LOGO-HONGSON-METAVERSE-MODEL-2.png" alt="Logo โรงเรียนห้องสอนศึกษา" class="header-logo">
+            <img src="https://img2.pic.in.th/pic/LOGO-HONGSON-METAVERSE-MODEL-2.png" alt="Logo" class="header-logo">
         </div>
         <div class="header-content">
-            <h1 class="header-title">ระบบวางแผนจุดปล่อยสัญญาณ Wi-Fi (Voronoi)</h1>
+            <h1 class="header-title">ระบบวางแผน Wi-Fi (Voronoi)</h1>
             <p class="header-subtitle">โครงงานคณิตศาสตร์ โรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ</p>
         </div>
     </header>
 
     <div id="container">
         <div id="controls">
-            <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #90caf9;">
-                <h3 style="margin: 0 0 8px 0; color: #1565c0; font-size: 1rem;">ℹ️ รัศมีสัญญาณ (Aura)</h3>
-                <div class="legend-box" style="margin-bottom:0; background: transparent; border:none; padding:0;">
-                    <div><span class="dot" style="background: #4CAF50;"></span><strong>5GHz (เขียว):</strong> ~30m (แรง/สั้น)</div>
-                    <div style="margin-top:3px;"><span class="dot" style="background: #FFC107;"></span><strong>2.4GHz (เหลือง):</strong> ~70m (ไกล)</div>
-                </div>
+            <div class="legend-box">
+                <div style="font-weight:bold; margin-bottom:5px;">ℹ️ รัศมีสัญญาณ (Aura)</div>
+                <div><span class="dot" style="background: #4CAF50;"></span><strong>5GHz (เขียว):</strong> ~30m (แรง/สั้น)</div>
+                <div style="margin-top:3px;"><span class="dot" style="background: #FFC107;"></span><strong>2.4GHz (เหลือง):</strong> ~70m (ไกล)</div>
             </div>
             
-            <h2>📍 พิกัดและคำนวณ</h2>
-            
-            <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
-                <label style="font-weight: 600; font-size: 0.9rem;">จำนวน WiFi:</label>
-                <input type="number" id="wifi-count" min="1" value="1" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc; width: 60px; text-align: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <label style="font-weight: 600;">จำนวน AP:</label>
+                <input type="number" id="wifi-count" min="1" value="2" style="padding: 6px; width: 60px; text-align: center; border:1px solid #ccc; border-radius:4px;">
             </div>
             
             <div id="building-inputs">
@@ -218,24 +197,27 @@
                 </div>
             </div>
             
-            <button id="add-building">+ เพิ่มอาคาร</button>
-            <hr style="margin: 10px 0; border: 0; border-top: 1px solid #eee;">
+            <button id="add-building" class="action-btn">➕ เพิ่มอาคาร</button>
+            <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
             
-            <button id="process-data">🚀 1. คำนวณ Aura</button>
-            <button id="check-signal-btn">📶 2. ตรวจสอบสัญญาณ</button>
+            <button id="process-data" class="action-btn">🚀 1. คำนวณ Aura</button>
+            <button id="check-signal-btn" class="action-btn">📶 2. ตรวจสอบสัญญาณ</button>
 
             <div id="results">
-                <h3 style="margin:0 0 10px 0; font-size:0.95rem;">ผลลัพธ์พิกัด (Lat, Lng)</h3>
-                <ul id="vertex-list"><li>- รอการประมวลผล -</li></ul>
+                <h3>📍 ผลลัพธ์พิกัด (Lat, Lng)</h3>
+                <ul id="vertex-list"><li>- กดปุ่มคำนวณเพื่อเริ่ม -</li></ul>
             </div>
         </div>
 
-        <div id="map"></div>
+        <div id="map-container">
+            <button id="fullscreen-toggle" class="map-toggle-btn">
+                <span>⛶</span> ขยายแผนที่
+            </button>
+            <div id="map"></div>
+        </div>
     </div>
     
-    <footer>
-        Copyright © 2025 โครงงานคณิตศาสตร์ โรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ
-    </footer>
+    <footer>© 2025 โครงงานคณิตศาสตร์ โรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ</footer>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -248,20 +230,44 @@
                 attribution: '&copy; OpenStreetMap', maxZoom: 22
             });
 
+            // ตรวจสอบว่าเป็นมือถือหรือไม่
+            const isMobile = window.innerWidth < 768;
+
             const map = L.map('map', {
                 layers: [satelliteLayer],
-                maxZoom: 18,
-                zoomControl: false
-            }).setView([19.312851, 97.965734], 18);
-            
+                maxZoom: 20,
+                zoomControl: false // ปิดปุ่ม Zoom เดิม
+            }).setView([19.3126, 97.9657], 18);
+
+            // เพิ่ม Zoom Control ใหม่ (ขวาบน)
             L.control.zoom({ position: 'topright' }).addTo(map);
+            
+            // Layer Control (ขวาล่าง)
             L.control.layers({ "ดาวเทียม": satelliteLayer, "แผนที่ถนน": osmLayer }, null, { position: 'bottomright' }).addTo(map);
             
             let markerLayer = L.layerGroup().addTo(map);
             let checkSignalMode = false;
             let currentWifiPoints = [];
 
-            // --- Helper Functions ---
+            // --- Fullscreen Toggle Logic ---
+            const mapContainer = document.getElementById('map-container');
+            const toggleBtn = document.getElementById('fullscreen-toggle');
+            
+            toggleBtn.addEventListener('click', () => {
+                mapContainer.classList.toggle('fullscreen');
+                map.invalidateSize(); // สำคัญ! บอก Map ให้ render ใหม่เมื่อขนาดเปลี่ยน
+                
+                if (mapContainer.classList.contains('fullscreen')) {
+                    toggleBtn.innerHTML = '<span>❌</span> ปิดเต็มจอ';
+                    // บนมือถือ เมื่อเต็มจอ ให้ปิดโหมดเลื่อนหน้าเว็บ
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    toggleBtn.innerHTML = '<span>⛶</span> ขยายแผนที่';
+                    document.body.style.overflow = ''; // คืนค่า Scroll
+                }
+            });
+
+            // --- Calculation Logic (เหมือนเดิม) ---
             function calculateVoronoiVertices(points, k, maxIterations = 50) {
                 if (points.length === 0 || k <= 0) return [];
                 if (k >= points.length) return points.map(p => ({ lat: p.lat, lng: p.lng }));
@@ -316,34 +322,37 @@
                 return { html: barHtml, bars: bars, color: color };
             }
 
-            // --- Events ---
+            // --- Event Listeners ---
             const checkBtn = document.getElementById('check-signal-btn');
             checkBtn.addEventListener('click', () => {
                 checkSignalMode = !checkSignalMode;
-                const mapContainer = document.getElementById('map');
                 if(checkSignalMode) {
-                    checkBtn.innerHTML = '🛑 หยุดตรวจสอบ';
+                    checkBtn.innerHTML = '🛑 แตะแผนที่เพื่อวัด (กำลังทำงาน)';
                     checkBtn.classList.add('active');
-                    mapContainer.classList.add('crosshair-cursor');
-                    map.dragging.enable();
+                    // ถ้าเข้าโหมดวัดสัญญาณ ให้ขยายแผนที่อัตโนมัติเลย (Optional UX)
+                    if (window.innerWidth < 768 && !mapContainer.classList.contains('fullscreen')) {
+                       toggleBtn.click();
+                    }
                 } else {
                     checkBtn.innerHTML = '📶 2. ตรวจสอบสัญญาณ';
                     checkBtn.classList.remove('active');
-                    mapContainer.classList.remove('crosshair-cursor');
                 }
             });
 
             map.on('click', (e) => {
                 if(!checkSignalMode) return;
                 if(currentWifiPoints.length === 0) return alert('กรุณากดคำนวณก่อน');
+                
                 const clickLat = e.latlng.lat; const clickLng = e.latlng.lng;
                 let minDist = Infinity;
                 currentWifiPoints.forEach(p => {
                     const d = getDistanceFromLatLonInM(clickLat, clickLng, p.lat, p.lng);
                     if(d < minDist) minDist = d;
                 });
+                
                 const sig5 = getSignalBars(minDist, '5G');
                 const sig24 = getSignalBars(minDist, '2.4G');
+                
                 const popupContent = `
                     <div class="signal-popup">
                         <h4 style="margin:0 0 5px 0; border-bottom:1px solid #eee; padding-bottom:5px; font-size:0.9rem;">📊 ผลการวัดสัญญาณ</h4>
@@ -361,10 +370,10 @@
             });
 
             document.getElementById('process-data').addEventListener('click', () => {
+                // Reset Mode
                 checkSignalMode = false;
                 checkBtn.classList.remove('active');
                 checkBtn.innerHTML = '📶 2. ตรวจสอบสัญญาณ';
-                document.getElementById('map').classList.remove('crosshair-cursor');
                 
                 markerLayer.clearLayers();
                 const list = document.getElementById('vertex-list');
@@ -409,10 +418,11 @@
             document.getElementById('add-building').addEventListener('click', () => {
                 const div = document.createElement('div');
                 div.className = 'building-input';
-                div.innerHTML = `<label>อาคาร:</label><input type="text" class="lat" placeholder="Lat"><input type="text" class="lng" placeholder="Lng">`;
+                div.innerHTML = `<label>ตึกใหม่:</label><input type="text" class="lat" placeholder="Lat"><input type="text" class="lng" placeholder="Lng">`;
                 document.getElementById('building-inputs').appendChild(div);
             });
 
+            // Auto Run
             setTimeout(() => document.getElementById('process-data').click(), 800);
         });
     </script>

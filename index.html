@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ระบบวางแผนจุดปล่อย Wi-Fi ด้วย Voronoi</title>
+    <title>ระบบวางแผน Wi-Fi (Voronoi)</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
 
     <style>
@@ -16,174 +15,224 @@
         body {
             font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
             margin: 0; padding: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f0f2f5;
             height: 100vh;
             display: flex; flex-direction: column;
-            overflow: hidden;
+            overflow: hidden; /* ห้าม Scroll ที่ตัว Body หลัก */
         }
 
         /* --- Header --- */
         header {
-            background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px);
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
             padding: 10px 15px;
-            display: flex; align-items: center; justify-content: center;
-            gap: 12px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
-            flex-shrink: 0; z-index: 1000;
+            display: flex; align-items: center; justify-content: space-between; /* จัดให้มีช่องว่างระหว่างปุ่มกับโลโก้ */
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            flex-shrink: 0; z-index: 2000; height: 60px;
         }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
         
+        /* 🍔 Hamburger Button Style */
+        #hamburger-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s;
+        }
+        #hamburger-btn:active { background: rgba(255,255,255,0.4); }
+
         .header-logo-wrapper {
-            width: 45px; height: 45px; /* ลดขนาดนิดหน่อยสำหรับมือถือ */
+            width: 35px; height: 35px;
             border-radius: 50%;
             background: white;
-            padding: 4px;
+            padding: 2px;
             display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
         .header-logo { width: 100%; height: 100%; object-fit: contain; }
-        .header-content { display: flex; flex-direction: column; }
-        .header-title { color: white; font-size: 1.1rem; font-weight: 700; margin: 0; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
-        .header-subtitle { color: rgba(255, 255, 255, 0.9); font-size: 0.75rem; margin: 2px 0 0 0; }
-
-        /* --- Layout --- */
-        #container {
-            display: flex; flex-direction: column; 
-            flex-grow: 1; width: 100%; overflow: hidden; position: relative;
-        }
-
-        #controls {
-            width: 100%; padding: 15px; background: white; 
-            overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 500;
-        }
-
-        #map-container {
-            flex-grow: 1; position: relative; width: 100%; z-index: 1;
-        }
-
-        #map { 
-            width: 100%; height: 100%; /* Map fills its container */
-            transition: height 0.3s;
-        }
-
-        /* --- Fullscreen Map Styles (The Magic Part) --- */
-        #map-container.fullscreen {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            width: 100vw; height: 100vh;
-            z-index: 9999;
-            background: white;
-        }
-
-        /* ปุ่มขยายเต็มจอ */
-        .map-toggle-btn {
-            position: absolute;
-            top: 10px; left: 10px;
-            z-index: 10000; /* อยู่บนสุด */
-            background: white;
-            border: none;
-            border-radius: 6px;
-            padding: 8px 12px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #333;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            cursor: pointer;
-            display: flex; align-items: center; gap: 5px;
-            transition: all 0.2s;
-        }
-        .map-toggle-btn:active { transform: scale(0.95); }
-        .map-toggle-btn span { font-size: 1.2rem; line-height: 1; }
         
-        /* สไตล์ปุ่มเมื่อ Fullscreen */
-        #map-container.fullscreen .map-toggle-btn {
-            background: #ff5252;
-            color: white;
+        .header-title { 
+            color: white; font-size: 1rem; font-weight: 600; margin: 0; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
-        /* --- UI Elements --- */
+        /* --- Layout Container --- */
+        #container {
+            display: flex; 
+            flex-grow: 1; 
+            width: 100%; 
+            position: relative; /* สำคัญสำหรับ absolute positioning ของ drawer */
+            overflow: hidden;
+        }
+
+        /* --- Controls Drawer (Sidebar) --- */
+        #controls {
+            background: white;
+            width: 320px; /* ความกว้างลิ้นชัก */
+            height: 100%;
+            overflow-y: auto; /* ให้ Scroll ได้เฉพาะในลิ้นชัก */
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            z-index: 1500;
+            padding: 20px;
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+
+        /* Overlay ฉากหลังเวลาเปิดเมนู */
+        #drawer-overlay {
+            position: fixed;
+            top: 60px; /* เริ่มใต้ Header */
+            left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1400;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s;
+            backdrop-filter: blur(2px);
+        }
+
+        /* --- Map --- */
+        #map { 
+            flex-grow: 1; 
+            width: 100%; 
+            height: 100%; 
+            z-index: 1; 
+        }
+
+        /* --- Mobile Specific Styles (< 768px) --- */
+        @media (max-width: 767px) {
+            #controls {
+                position: absolute; /* ลอยอยู่เหนือแผนที่ */
+                top: 0; left: 0; bottom: 0;
+                width: 85%; /* กว้าง 85% ของหน้าจอมือถือ */
+                max-width: 320px;
+                transform: translateX(-100%); /* ซ่อนไปทางซ้าย */
+            }
+            
+            #controls.open {
+                transform: translateX(0); /* เลื่อนออกมา */
+            }
+
+            #drawer-overlay.open {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            /* ปุ่มปิดใน Drawer */
+            .drawer-close-btn {
+                display: flex;
+            }
+        }
+
+        /* --- Desktop Specific Styles (>= 768px) --- */
+        @media (min-width: 768px) {
+            #hamburger-btn { display: none; /* ซ่อนปุ่ม Hamburger บน PC */ }
+            
+            #controls {
+                position: relative; /* กลับมาเป็น Sidebar ปกติ */
+                transform: none !important; /* ห้ามซ่อน */
+                border-right: 1px solid #ddd;
+                width: 350px;
+                flex-shrink: 0;
+            }
+            
+            #drawer-overlay { display: none; } /* ไม่ใช้ Overlay บน PC */
+            
+            .header-title { font-size: 1.2rem; }
+            .drawer-close-btn { display: none !important; } /* ซ่อนปุ่มปิด */
+        }
+
+        /* --- UI Components --- */
+        .drawer-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px;
+        }
+        .drawer-close-btn {
+            background: none; border: none; font-size: 1.5rem; color: #666; cursor: pointer;
+            display: none; /* ซ่อนโดย default (แสดงเฉพาะ mobile) */
+        }
+        
+        .legend-box { background: #fff8e1; padding: 10px; border-radius: 6px; font-size: 0.85rem; border: 1px solid #ffe082; margin-bottom: 15px; }
+        .dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        
         .building-input {
             display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;
-            padding: 8px; background: #f8f9fa; border-radius: 6px; border: 1px solid #e9ecef;
+            padding: 10px; background: #f8f9fa; border-radius: 6px; border: 1px solid #e9ecef;
         }
-        .building-input label { font-size: 0.85rem; font-weight: 600; min-width: 50px; }
-        .building-input input { flex: 1; min-width: 80px; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.9rem; }
-        
+        .building-input label { font-size: 0.9rem; font-weight: 600; min-width: 50px; }
+        .building-input input { flex: 1; min-width: 80px; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; }
+
         button.action-btn {
             width: 100%; padding: 12px; border: none; border-radius: 8px;
-            color: white; font-weight: 600; font-size: 0.95rem;
-            margin-bottom: 8px; cursor: pointer;
+            color: white; font-weight: 600; margin-bottom: 8px; cursor: pointer;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            display: flex; align-items: center; justify-content: center; gap: 8px;
+            font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px;
         }
         #add-building { background: linear-gradient(135deg, #20bf55 0%, #01baef 100%); }
         #process-data { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-        #check-signal-btn { background: #546e7a; margin-top: 5px; }
+        #check-signal-btn { background: #546e7a; margin-top: 10px; }
         #check-signal-btn.active { background: #ff5722; animation: pulse 1.5s infinite; }
-
+        
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
 
-        /* Results & Legend */
-        .legend-box { background: #fff8e1; padding: 10px; border-radius: 6px; font-size: 0.8rem; border: 1px solid #ffe082; margin-bottom: 15px; }
-        .dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
         #results { background: #f1f8e9; padding: 10px; border-radius: 8px; border: 1px solid #c5e1a5; margin-top: 15px; }
-        #results h3 { margin: 0 0 5px 0; font-size: 0.9rem; color: #33691e; }
-        #vertex-list { list-style: none; padding: 0; margin: 0; font-size: 0.85rem; font-family: monospace; }
-        #vertex-list li { margin-bottom: 4px; }
+        #vertex-list { list-style: none; padding: 0; margin: 0; font-family: monospace; font-size: 0.85rem; }
+        #vertex-list li { margin-bottom: 5px; border-bottom: 1px dashed #c5e1a5; padding-bottom: 2px; }
 
         /* Popup */
-        .signal-popup { text-align: center; min-width: 140px; }
-        .signal-bars { font-size: 1.1rem; margin: 3px 0; letter-spacing: 2px; }
+        .signal-popup { text-align: center; min-width: 150px; }
+        .signal-bars { font-size: 1.2rem; margin: 5px 0; letter-spacing: 2px; }
 
-        /* Footer */
+        /* Footer (Optional, hidden on mobile to save space) */
         footer {
-            background: rgba(0, 0, 0, 0.3); color: white; text-align: center;
+            background: rgba(0, 0, 0, 0.8); color: white; text-align: center;
             padding: 5px; font-size: 0.7rem; flex-shrink: 0;
+            display: none; /* ซ่อนไปเลยเพื่อพื้นที่ Map สูงสุด */
         }
+        @media (min-width: 768px) { footer { display: block; } }
 
-        /* --- Desktop Responsive --- */
-        @media (min-width: 768px) {
-            #container { flex-direction: row; }
-            #controls { 
-                width: 350px; height: 100%; border-right: 1px solid #ddd; 
-                flex-shrink: 0;
-            }
-            .header-title { font-size: 1.4rem; }
-            /* ซ่อนปุ่ม Fullscreen บน PC เพราะจอใหญ่อยู่แล้ว */
-            .map-toggle-btn { display: none; }
-        }
     </style>
 </head>
 <body>
 
     <header>
-        <div class="header-logo-wrapper">
-            <img src="https://img2.pic.in.th/pic/LOGO-HONGSON-METAVERSE-MODEL-2.png" alt="Logo" class="header-logo">
-        </div>
-        <div class="header-content">
-            <h1 class="header-title">ระบบวางแผน Wi-Fi (Voronoi)</h1>
-            <p class="header-subtitle">โครงงานคณิตศาสตร์ โรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ</p>
+        <div class="header-left">
+            <button id="hamburger-btn">☰</button>
+            <div class="header-logo-wrapper">
+                <img src="https://img2.pic.in.th/pic/LOGO-HONGSON-METAVERSE-MODEL-2.png" alt="Logo" class="header-logo">
+            </div>
+            <h1 class="header-title">Wi-Fi Planner</h1>
         </div>
     </header>
 
     <div id="container">
+        <div id="drawer-overlay"></div>
+
         <div id="controls">
+            <div class="drawer-header">
+                <h3 style="margin:0; color:#333;">⚙️ ตั้งค่า</h3>
+                <button class="drawer-close-btn" id="close-drawer-btn">×</button>
+            </div>
+
             <div class="legend-box">
-                <div style="font-weight:bold; margin-bottom:5px;">ℹ️ รัศมีสัญญาณ (Aura)</div>
-                <div><span class="dot" style="background: #4CAF50;"></span><strong>5GHz (เขียว):</strong> ~30m (แรง/สั้น)</div>
-                <div style="margin-top:3px;"><span class="dot" style="background: #FFC107;"></span><strong>2.4GHz (เหลือง):</strong> ~70m (ไกล)</div>
+                <div style="font-weight:bold; margin-bottom:5px;">ℹ️ รัศมี (Aura)</div>
+                <div><span class="dot" style="background: #4CAF50;"></span><strong>5GHz (เขียว):</strong> ~30m</div>
+                <div style="margin-top:3px;"><span class="dot" style="background: #FFC107;"></span><strong>2.4GHz (เหลือง):</strong> ~70m</div>
             </div>
             
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <label style="font-weight: 600;">จำนวน AP:</label>
-                <input type="number" id="wifi-count" min="1" value="2" style="padding: 6px; width: 60px; text-align: center; border:1px solid #ccc; border-radius:4px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <label style="font-weight: 600;">📡 จำนวน AP:</label>
+                <input type="number" id="wifi-count" min="1" value="2" style="padding: 8px; width: 70px; text-align: center; border:1px solid #ccc; border-radius:4px;">
             </div>
             
             <div id="building-inputs">
                 <div class="building-input">
                     <label>ตึก 1:</label>
-                    <input type="text" class="lat" value="19.312851">
-                    <input type="text" class="lng" value="97.965734">
+                    <input type="text" class="lat" value="19.312851" placeholder="Lat">
+                    <input type="text" class="lng" value="97.965734" placeholder="Lng">
                 </div>
                 <div class="building-input">
                     <label>ตึก 2:</label>
@@ -198,23 +247,18 @@
             </div>
             
             <button id="add-building" class="action-btn">➕ เพิ่มอาคาร</button>
-            <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
+            <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
             
             <button id="process-data" class="action-btn">🚀 1. คำนวณ Aura</button>
             <button id="check-signal-btn" class="action-btn">📶 2. ตรวจสอบสัญญาณ</button>
 
             <div id="results">
-                <h3>📍 ผลลัพธ์พิกัด (Lat, Lng)</h3>
-                <ul id="vertex-list"><li>- กดปุ่มคำนวณเพื่อเริ่ม -</li></ul>
+                <h4 style="margin:0 0 10px 0; color:#33691e;">📍 พิกัดที่แนะนำ</h4>
+                <ul id="vertex-list"><li>- รอการประมวลผล -</li></ul>
             </div>
-        </div>
+            <br><br> </div>
 
-        <div id="map-container">
-            <button id="fullscreen-toggle" class="map-toggle-btn">
-                <span>⛶</span> ขยายแผนที่
-            </button>
-            <div id="map"></div>
-        </div>
+        <div id="map"></div>
     </div>
     
     <footer>© 2025 โครงงานคณิตศาสตร์ โรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ</footer>
@@ -222,6 +266,26 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             
+            // --- UI Interaction (Hamburger) ---
+            const hamburgerBtn = document.getElementById('hamburger-btn');
+            const closeDrawerBtn = document.getElementById('close-drawer-btn');
+            const drawer = document.getElementById('controls');
+            const overlay = document.getElementById('drawer-overlay');
+
+            function toggleDrawer() {
+                drawer.classList.toggle('open');
+                overlay.classList.toggle('open');
+            }
+
+            function closeDrawer() {
+                drawer.classList.remove('open');
+                overlay.classList.remove('open');
+            }
+
+            hamburgerBtn.addEventListener('click', toggleDrawer);
+            closeDrawerBtn.addEventListener('click', closeDrawer);
+            overlay.addEventListener('click', closeDrawer);
+
             // --- Map Setup ---
             const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                 attribution: 'Tiles &copy; Esri', maxZoom: 19
@@ -230,44 +294,20 @@
                 attribution: '&copy; OpenStreetMap', maxZoom: 22
             });
 
-            // ตรวจสอบว่าเป็นมือถือหรือไม่
-            const isMobile = window.innerWidth < 768;
-
             const map = L.map('map', {
                 layers: [satelliteLayer],
                 maxZoom: 20,
-                zoomControl: false // ปิดปุ่ม Zoom เดิม
+                zoomControl: false // ย้าย Zoom Control
             }).setView([19.3126, 97.9657], 18);
 
-            // เพิ่ม Zoom Control ใหม่ (ขวาบน)
             L.control.zoom({ position: 'topright' }).addTo(map);
-            
-            // Layer Control (ขวาล่าง)
             L.control.layers({ "ดาวเทียม": satelliteLayer, "แผนที่ถนน": osmLayer }, null, { position: 'bottomright' }).addTo(map);
             
             let markerLayer = L.layerGroup().addTo(map);
             let checkSignalMode = false;
             let currentWifiPoints = [];
 
-            // --- Fullscreen Toggle Logic ---
-            const mapContainer = document.getElementById('map-container');
-            const toggleBtn = document.getElementById('fullscreen-toggle');
-            
-            toggleBtn.addEventListener('click', () => {
-                mapContainer.classList.toggle('fullscreen');
-                map.invalidateSize(); // สำคัญ! บอก Map ให้ render ใหม่เมื่อขนาดเปลี่ยน
-                
-                if (mapContainer.classList.contains('fullscreen')) {
-                    toggleBtn.innerHTML = '<span>❌</span> ปิดเต็มจอ';
-                    // บนมือถือ เมื่อเต็มจอ ให้ปิดโหมดเลื่อนหน้าเว็บ
-                    document.body.style.overflow = 'hidden';
-                } else {
-                    toggleBtn.innerHTML = '<span>⛶</span> ขยายแผนที่';
-                    document.body.style.overflow = ''; // คืนค่า Scroll
-                }
-            });
-
-            // --- Calculation Logic (เหมือนเดิม) ---
+            // --- Logic (เหมือนเดิม) ---
             function calculateVoronoiVertices(points, k, maxIterations = 50) {
                 if (points.length === 0 || k <= 0) return [];
                 if (k >= points.length) return points.map(p => ({ lat: p.lat, lng: p.lng }));
@@ -322,17 +362,19 @@
                 return { html: barHtml, bars: bars, color: color };
             }
 
-            // --- Event Listeners ---
+            // --- Events ---
             const checkBtn = document.getElementById('check-signal-btn');
             checkBtn.addEventListener('click', () => {
                 checkSignalMode = !checkSignalMode;
                 if(checkSignalMode) {
                     checkBtn.innerHTML = '🛑 แตะแผนที่เพื่อวัด (กำลังทำงาน)';
                     checkBtn.classList.add('active');
-                    // ถ้าเข้าโหมดวัดสัญญาณ ให้ขยายแผนที่อัตโนมัติเลย (Optional UX)
-                    if (window.innerWidth < 768 && !mapContainer.classList.contains('fullscreen')) {
-                       toggleBtn.click();
+                    
+                    // UX Improvement: ถ้าเป็นมือถือ ให้ปิด Drawer อัตโนมัติเพื่อให้เห็นแผนที่
+                    if (window.innerWidth < 768) {
+                        closeDrawer();
                     }
+                    
                 } else {
                     checkBtn.innerHTML = '📶 2. ตรวจสอบสัญญาณ';
                     checkBtn.classList.remove('active');
@@ -370,7 +412,6 @@
             });
 
             document.getElementById('process-data').addEventListener('click', () => {
-                // Reset Mode
                 checkSignalMode = false;
                 checkBtn.classList.remove('active');
                 checkBtn.innerHTML = '📶 2. ตรวจสอบสัญญาณ';
@@ -413,6 +454,11 @@
 
                 const bounds = L.latLngBounds([ ...buildings.map(b => [b.lat, b.lng]), ...currentWifiPoints.map(p => [p.lat, p.lng]) ]);
                 map.fitBounds(bounds.pad(0.2));
+                
+                // UX: เมื่อคำนวณเสร็จในมือถือ ปิด Drawer เพื่อให้เห็นผลลัพธ์บนแมพทันที
+                if(window.innerWidth < 768) {
+                    closeDrawer();
+                }
             });
 
             document.getElementById('add-building').addEventListener('click', () => {
@@ -422,7 +468,7 @@
                 document.getElementById('building-inputs').appendChild(div);
             });
 
-            // Auto Run
+            // Auto run
             setTimeout(() => document.getElementById('process-data').click(), 800);
         });
     </script>

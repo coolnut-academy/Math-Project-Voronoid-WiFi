@@ -18,21 +18,20 @@
             background: #f0f2f5;
             height: 100vh;
             display: flex; flex-direction: column;
-            overflow: hidden; /* ห้าม Scroll ที่ตัว Body หลัก */
+            overflow: hidden;
         }
 
         /* --- Header --- */
         header {
             background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
             padding: 10px 15px;
-            display: flex; align-items: center; justify-content: space-between; /* จัดให้มีช่องว่างระหว่างปุ่มกับโลโก้ */
+            display: flex; align-items: center; justify-content: space-between;
             box-shadow: 0 2px 10px rgba(0,0,0,0.15);
             flex-shrink: 0; z-index: 2000; height: 60px;
         }
 
         .header-left { display: flex; align-items: center; gap: 15px; }
         
-        /* 🍔 Hamburger Button Style */
         #hamburger-btn {
             background: rgba(255,255,255,0.2);
             border: none;
@@ -60,99 +59,63 @@
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
-        /* --- Layout Container --- */
+        /* --- Layout --- */
         #container {
-            display: flex; 
-            flex-grow: 1; 
-            width: 100%; 
-            position: relative; /* สำคัญสำหรับ absolute positioning ของ drawer */
-            overflow: hidden;
+            display: flex; flex-grow: 1; width: 100%; 
+            position: relative; overflow: hidden;
         }
 
-        /* --- Controls Drawer (Sidebar) --- */
         #controls {
             background: white;
-            width: 320px; /* ความกว้างลิ้นชัก */
-            height: 100%;
-            overflow-y: auto; /* ให้ Scroll ได้เฉพาะในลิ้นชัก */
+            width: 320px; height: 100%;
+            overflow-y: auto;
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
             z-index: 1500;
             padding: 20px;
             transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
         }
 
-        /* Overlay ฉากหลังเวลาเปิดเมนู */
         #drawer-overlay {
-            position: fixed;
-            top: 60px; /* เริ่มใต้ Header */
-            left: 0; right: 0; bottom: 0;
+            position: fixed; top: 60px; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.5);
             z-index: 1400;
-            opacity: 0;
-            visibility: hidden;
+            opacity: 0; visibility: hidden;
             transition: opacity 0.3s;
             backdrop-filter: blur(2px);
         }
 
-        /* --- Map --- */
-        #map { 
-            flex-grow: 1; 
-            width: 100%; 
-            height: 100%; 
-            z-index: 1; 
-        }
+        #map { flex-grow: 1; width: 100%; height: 100%; z-index: 1; }
 
-        /* --- Mobile Specific Styles (< 768px) --- */
         @media (max-width: 767px) {
             #controls {
-                position: absolute; /* ลอยอยู่เหนือแผนที่ */
-                top: 0; left: 0; bottom: 0;
-                width: 85%; /* กว้าง 85% ของหน้าจอมือถือ */
-                max-width: 320px;
-                transform: translateX(-100%); /* ซ่อนไปทางซ้าย */
+                position: absolute; top: 0; left: 0; bottom: 0;
+                width: 85%; max-width: 320px;
+                transform: translateX(-100%);
             }
-            
-            #controls.open {
-                transform: translateX(0); /* เลื่อนออกมา */
-            }
-
-            #drawer-overlay.open {
-                opacity: 1;
-                visibility: visible;
-            }
-
-            /* ปุ่มปิดใน Drawer */
-            .drawer-close-btn {
-                display: flex;
-            }
+            #controls.open { transform: translateX(0); }
+            #drawer-overlay.open { opacity: 1; visibility: visible; }
+            .drawer-close-btn { display: flex; }
         }
 
-        /* --- Desktop Specific Styles (>= 768px) --- */
         @media (min-width: 768px) {
-            #hamburger-btn { display: none; /* ซ่อนปุ่ม Hamburger บน PC */ }
-            
+            #hamburger-btn { display: none; }
             #controls {
-                position: relative; /* กลับมาเป็น Sidebar ปกติ */
-                transform: none !important; /* ห้ามซ่อน */
-                border-right: 1px solid #ddd;
-                width: 350px;
-                flex-shrink: 0;
+                position: relative; transform: none !important;
+                border-right: 1px solid #ddd; width: 350px; flex-shrink: 0;
             }
-            
-            #drawer-overlay { display: none; } /* ไม่ใช้ Overlay บน PC */
-            
+            #drawer-overlay { display: none; }
             .header-title { font-size: 1.2rem; }
-            .drawer-close-btn { display: none !important; } /* ซ่อนปุ่มปิด */
+            .drawer-close-btn { display: none !important; }
         }
 
-        /* --- UI Components --- */
+        /* --- Components --- */
         .drawer-header {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px;
         }
         .drawer-close-btn {
             background: none; border: none; font-size: 1.5rem; color: #666; cursor: pointer;
-            display: none; /* ซ่อนโดย default (แสดงเฉพาะ mobile) */
+            display: none;
         }
         
         .legend-box { background: #fff8e1; padding: 10px; border-radius: 6px; font-size: 0.85rem; border: 1px solid #ffe082; margin-bottom: 15px; }
@@ -182,18 +145,14 @@
         #vertex-list { list-style: none; padding: 0; margin: 0; font-family: monospace; font-size: 0.85rem; }
         #vertex-list li { margin-bottom: 5px; border-bottom: 1px dashed #c5e1a5; padding-bottom: 2px; }
 
-        /* Popup */
         .signal-popup { text-align: center; min-width: 150px; }
         .signal-bars { font-size: 1.2rem; margin: 5px 0; letter-spacing: 2px; }
 
-        /* Footer (Optional, hidden on mobile to save space) */
         footer {
             background: rgba(0, 0, 0, 0.8); color: white; text-align: center;
-            padding: 5px; font-size: 0.7rem; flex-shrink: 0;
-            display: none; /* ซ่อนไปเลยเพื่อพื้นที่ Map สูงสุด */
+            padding: 5px; font-size: 0.7rem; flex-shrink: 0; display: none;
         }
         @media (min-width: 768px) { footer { display: block; } }
-
     </style>
 </head>
 <body>
@@ -256,7 +215,8 @@
                 <h4 style="margin:0 0 10px 0; color:#33691e;">📍 พิกัดที่แนะนำ</h4>
                 <ul id="vertex-list"><li>- รอการประมวลผล -</li></ul>
             </div>
-            <br><br> </div>
+            <br><br>
+        </div>
 
         <div id="map"></div>
     </div>
@@ -266,21 +226,14 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             
-            // --- UI Interaction (Hamburger) ---
+            // --- Hamburger Logic ---
             const hamburgerBtn = document.getElementById('hamburger-btn');
             const closeDrawerBtn = document.getElementById('close-drawer-btn');
             const drawer = document.getElementById('controls');
             const overlay = document.getElementById('drawer-overlay');
 
-            function toggleDrawer() {
-                drawer.classList.toggle('open');
-                overlay.classList.toggle('open');
-            }
-
-            function closeDrawer() {
-                drawer.classList.remove('open');
-                overlay.classList.remove('open');
-            }
+            function toggleDrawer() { drawer.classList.toggle('open'); overlay.classList.toggle('open'); }
+            function closeDrawer() { drawer.classList.remove('open'); overlay.classList.remove('open'); }
 
             hamburgerBtn.addEventListener('click', toggleDrawer);
             closeDrawerBtn.addEventListener('click', closeDrawer);
@@ -294,10 +247,11 @@
                 attribution: '&copy; OpenStreetMap', maxZoom: 22
             });
 
+            // สร้าง map พร้อมตั้งค่า maxZoom
             const map = L.map('map', {
                 layers: [satelliteLayer],
-                maxZoom: 20,
-                zoomControl: false // ย้าย Zoom Control
+                maxZoom: 20, 
+                zoomControl: false
             }).setView([19.3126, 97.9657], 18);
 
             L.control.zoom({ position: 'topright' }).addTo(map);
@@ -307,7 +261,7 @@
             let checkSignalMode = false;
             let currentWifiPoints = [];
 
-            // --- Logic (เหมือนเดิม) ---
+            // --- Helpers ---
             function calculateVoronoiVertices(points, k, maxIterations = 50) {
                 if (points.length === 0 || k <= 0) return [];
                 if (k >= points.length) return points.map(p => ({ lat: p.lat, lng: p.lng }));
@@ -369,12 +323,7 @@
                 if(checkSignalMode) {
                     checkBtn.innerHTML = '🛑 แตะแผนที่เพื่อวัด (กำลังทำงาน)';
                     checkBtn.classList.add('active');
-                    
-                    // UX Improvement: ถ้าเป็นมือถือ ให้ปิด Drawer อัตโนมัติเพื่อให้เห็นแผนที่
-                    if (window.innerWidth < 768) {
-                        closeDrawer();
-                    }
-                    
+                    if (window.innerWidth < 768) closeDrawer();
                 } else {
                     checkBtn.innerHTML = '📶 2. ตรวจสอบสัญญาณ';
                     checkBtn.classList.remove('active');
@@ -391,10 +340,8 @@
                     const d = getDistanceFromLatLonInM(clickLat, clickLng, p.lat, p.lng);
                     if(d < minDist) minDist = d;
                 });
-                
                 const sig5 = getSignalBars(minDist, '5G');
                 const sig24 = getSignalBars(minDist, '2.4G');
-                
                 const popupContent = `
                     <div class="signal-popup">
                         <h4 style="margin:0 0 5px 0; border-bottom:1px solid #eee; padding-bottom:5px; font-size:0.9rem;">📊 ผลการวัดสัญญาณ</h4>
@@ -452,13 +399,11 @@
                     list.appendChild(li);
                 });
 
+                // ✅ FIX: ล็อกระดับการซูมสูงสุดไว้ที่ 18 (กันซูมลึกเกิน)
                 const bounds = L.latLngBounds([ ...buildings.map(b => [b.lat, b.lng]), ...currentWifiPoints.map(p => [p.lat, p.lng]) ]);
-                map.fitBounds(bounds.pad(0.2));
+                map.fitBounds(bounds.pad(0.2), { maxZoom: 18 });
                 
-                // UX: เมื่อคำนวณเสร็จในมือถือ ปิด Drawer เพื่อให้เห็นผลลัพธ์บนแมพทันที
-                if(window.innerWidth < 768) {
-                    closeDrawer();
-                }
+                if(window.innerWidth < 768) closeDrawer();
             });
 
             document.getElementById('add-building').addEventListener('click', () => {
@@ -468,7 +413,6 @@
                 document.getElementById('building-inputs').appendChild(div);
             });
 
-            // Auto run
             setTimeout(() => document.getElementById('process-data').click(), 800);
         });
     </script>
